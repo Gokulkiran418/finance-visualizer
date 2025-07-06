@@ -1,5 +1,5 @@
 'use client';
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { transactionSchema } from "@/lib/validation/transaction";
@@ -7,44 +7,65 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { useState } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useEffect, useState } from "react";
 import { animate } from "animejs";
 
 type TransactionFormData = z.infer<typeof transactionSchema>;
+
 type Props = {
   onSuccess: () => void;
+  defaultValues?: TransactionFormData & { _id?: string };
+  mode?: "add" | "edit";
 };
 
-export default function TransactionForm({ onSuccess }: Props) {
+const incomeCategories = ["Salary", "Freelance", "Investments"];
+const expenseCategories = ["Food", "Rent", "Utilities", "Transport", "Entertainment", "Healthcare"];
+
+export default function TransactionForm({ onSuccess, defaultValues, mode = "add" }: Props) {
   const {
     register,
     handleSubmit,
     control,
     formState: { errors },
     reset,
+    setValue,
   } = useForm<TransactionFormData>({
     resolver: zodResolver(transactionSchema),
-    defaultValues: {
-      type: "expense", // ✅ set default here
-    },
+    defaultValues: defaultValues || { type: "expense", category: "" },
   });
+
+  const type = useWatch({ control, name: "type" }); // Watch for dynamic category
 
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
 
-   const onSubmit = async (data: TransactionFormData) => {
+  useEffect(() => {
+    if (defaultValues) {
+      Object.entries(defaultValues).forEach(([key, value]) => {
+        setValue(key as keyof TransactionFormData, value as any);
+      });
+    }
+  }, [defaultValues, setValue]);
+
+  const onSubmit = async (data: TransactionFormData) => {
     setStatus("loading");
     try {
-      const res = await fetch("/api/transactions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
+      const res = await fetch(
+        mode === "edit" && defaultValues?._id
+          ? `/api/transactions/${defaultValues._id}`
+          : `/api/transactions`,
+        {
+          method: mode === "edit" ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        }
+      );
 
       if (!res.ok) throw new Error("Error");
 
       setStatus("success");
       reset();
-      onSuccess(); // 👈 trigger table refresh
+      onSuccess();
 
       animate("#formSuccess", {
         opacity: [0, 1],
@@ -56,7 +77,6 @@ export default function TransactionForm({ onSuccess }: Props) {
       setStatus("error");
     }
   };
-
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 p-6 max-w-md mx-auto">
@@ -99,12 +119,41 @@ export default function TransactionForm({ onSuccess }: Props) {
         {errors.type && <p className="text-red-500 text-sm">{errors.type.message}</p>}
       </div>
 
+      <div>
+        <Label>Category</Label>
+        <Controller
+          name="category"
+          control={control}
+          render={({ field }) => (
+            <Select onValueChange={field.onChange} value={field.value}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a category" />
+              </SelectTrigger>
+              <SelectContent>
+                {(type === "income" ? incomeCategories : expenseCategories).map((cat) => (
+                  <SelectItem key={cat} value={cat}>
+                    {cat}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
+        {errors.category && <p className="text-red-500 text-sm">{errors.category.message}</p>}
+      </div>
+
       <Button type="submit" disabled={status === "loading"}>
-        {status === "loading" ? "Adding..." : "Add Transaction"}
+        {status === "loading"
+          ? mode === "edit"
+            ? "Updating..."
+            : "Adding..."
+          : mode === "edit"
+          ? "Update Transaction"
+          : "Add Transaction"}
       </Button>
 
       <p id="formSuccess" className="text-green-500 text-sm opacity-0">
-        Transaction added successfully!
+        {mode === "edit" ? "Transaction updated successfully!" : "Transaction added successfully!"}
       </p>
       {status === "error" && (
         <p className="text-red-500 text-sm">Something went wrong. Try again.</p>

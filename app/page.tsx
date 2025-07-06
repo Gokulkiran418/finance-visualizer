@@ -27,7 +27,7 @@ export default function Home() {
       <h1 className="text-4xl font-bold mb-4">Personal Finance Visualizer</h1>
       <TransactionForm onSuccess={handleRefresh} />
       <TransactionTable refreshTrigger={refreshFlag} />
-      <MonthlyExpensesChart />
+      <MonthlyExpensesChart refreshTrigger={refreshFlag} /> 
     </main>
   );
 }
