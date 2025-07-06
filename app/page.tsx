@@ -1,3 +1,4 @@
+// page.tsx
 'use client';
 
 import { useEffect, useState } from "react";
@@ -7,6 +8,9 @@ import MonthlyExpensesChart from "@/components/MonthlyExpensesChart";
 import CategoryManager from "@/components/CategoryManager";
 import BudgetManager from "@/components/BudgetManager";
 import { animate, stagger } from "animejs";
+import BudgetVsActualChart from "@/components/BudgetVsActualChart";
+import BudgetProgressIndicator from '@/components/BudgetProgressIndicator';
+
 
 type Category = { _id: string; name: string };
 
@@ -14,13 +18,6 @@ export default function Home() {
   const [refreshFlag, setRefreshFlag] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
 
-  // Toggle refresh and re-fetch categories
-  const handleRefresh = () => {
-    setRefreshFlag((prev) => !prev);
-    fetchCategories();
-  };
-
-  // Load categories from API
   const fetchCategories = async () => {
     try {
       const res = await fetch("/api/categories");
@@ -31,10 +28,14 @@ export default function Home() {
     }
   };
 
+ const handleRefresh = () => {
+  setRefreshFlag((prev) => !prev);
+  fetchCategories();
+};
+
   useEffect(() => {
     fetchCategories();
 
-    // Heading animation
     animate("h1", {
       opacity: [0, 1],
       translateY: [20, 0],
@@ -42,7 +43,6 @@ export default function Home() {
       easing: "easeOutQuad",
     });
 
-    // Left panel animation
     animate(".left-panel > *", {
       opacity: [0, 1],
       translateX: [-20, 0],
@@ -51,7 +51,6 @@ export default function Home() {
       easing: "easeOutQuad",
     });
 
-    // Right panel animation
     animate(".right-panel > *", {
       opacity: [0, 1],
       translateX: [20, 0],
@@ -68,32 +67,20 @@ export default function Home() {
       </h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
-        {/* Left Panel: fixed width, vertical stack */}
+        {/* Left Panel */}
         <div className="left-panel flex flex-col gap-6">
-          <div className="w-full">
-            <BudgetManager />
-          </div>
-          <div className="w-full">
-            <CategoryManager onChange={fetchCategories} />
-          </div>
+          <BudgetManager onChange={handleRefresh} />
+          <CategoryManager onChange={fetchCategories} />
         </div>
 
-        {/* Right Panel: main content */}
+        {/* Right Panel */}
         <div className="right-panel flex flex-col gap-6">
-          <div>
-            <TransactionForm
-              onSuccess={handleRefresh}
-              categories={categories}
-            />
-          </div>
+          <TransactionForm onSuccess={handleRefresh} categories={categories} />
+          <TransactionTable refreshTrigger={refreshFlag} />
+          <MonthlyExpensesChart refreshTrigger={refreshFlag} />
+          <BudgetProgressIndicator refreshTrigger={refreshFlag} />
+            <BudgetVsActualChart refreshTrigger={refreshFlag} />
 
-          <div>
-            <TransactionTable refreshTrigger={refreshFlag} />
-          </div>
-
-          <div>
-            <MonthlyExpensesChart refreshTrigger={refreshFlag} />
-          </div>
         </div>
       </div>
     </main>

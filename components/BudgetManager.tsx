@@ -1,11 +1,11 @@
+// components/BudgetManager.tsx
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { animate, stagger } from 'animejs';
 
 type Budget = {
   _id: string;
@@ -13,12 +13,15 @@ type Budget = {
   amount: number;
 };
 
-export default function BudgetManager() {
+type Props = {
+  onChange?: () => void; // ✅ Added prop
+};
+
+export default function BudgetManager({ onChange }: Props) {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [newBudgets, setNewBudgets] = useState<Record<string, string>>({});
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   const fetchBudgets = async () => {
     const res = await fetch('/api/budgets');
@@ -38,49 +41,33 @@ export default function BudgetManager() {
     fetchBudgets();
   }, []);
 
-  useEffect(() => {
-    if (containerRef.current) {
-      animate(containerRef.current, {
-        opacity: [0, 1],
-        translateY: [30, 0],
-        duration: 600,
-        easing: 'easeOutExpo',
-      });
-    }
+const handleSave = async (category: string) => {
+  setLoading(true);
+  const amount = parseFloat(newBudgets[category]);
 
-    animate('.budget-row', {
-      opacity: [0, 1],
-      translateX: [-20, 0],
-      delay: stagger(100),
-      duration: 500,
-      easing: 'easeOutExpo',
-    });
-  }, [categories]);
+  // Add current month in YYYY-MM format
+  const now = new Date();
+  const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-  const handleSave = async (category: string) => {
-    setLoading(true);
-    const amount = parseFloat(newBudgets[category]);
+  const existing = budgets.find((b) => b.category === category);
+  const method = existing ? 'PUT' : 'POST';
+  const url = existing ? `/api/budgets/${existing._id}` : '/api/budgets';
 
-    const existing = budgets.find((b) => b.category === category);
-    const method = existing ? 'PUT' : 'POST';
-    const url = existing ? `/api/budgets/${existing._id}` : '/api/budgets';
+  await fetch(url, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ category, amount, month }), // ✅ Add month
+  });
 
-    await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ category, amount }),
-    });
+  setNewBudgets((prev) => ({ ...prev, [category]: '' }));
+  await fetchBudgets();
+  setLoading(false);
+  onChange?.(); // ✅ Notify parent after update
+};
 
-    setNewBudgets((prev) => ({ ...prev, [category]: '' }));
-    await fetchBudgets();
-    setLoading(false);
-  };
 
   return (
-    <Card
-      ref={containerRef}
-      className="p-6 w-full max-w-2xl mx-auto space-y-6 mt-10 opacity-0"
-    >
+    <Card className="p-6 w-full max-w-2xl mx-auto space-y-6 mt-10">
       <h2 className="text-xl font-bold">Manage Monthly Budgets</h2>
 
       {categories.length === 0 ? (
@@ -90,7 +77,7 @@ export default function BudgetManager() {
           {categories.map((category) => {
             const existing = budgets.find((b) => b.category === category);
             return (
-              <li key={category} className="space-y-2 budget-row opacity-0">
+              <li key={category} className="space-y-2">
                 <Label className="block text-sm font-medium">{category}</Label>
                 <div className="flex items-center gap-2">
                   <Input
