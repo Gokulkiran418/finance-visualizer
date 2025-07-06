@@ -31,6 +31,8 @@ export default function TransactionTable({ refreshTrigger }: Props) {
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState(""); // ✅ new
+
 
   // ✅ Filter states
   const [typeFilter, setTypeFilter] = useState("");
@@ -51,6 +53,8 @@ export default function TransactionTable({ refreshTrigger }: Props) {
     if (descriptionFilter) params.append("description", descriptionFilter);
     if (startDate) params.append("startDate", startDate);
     if (endDate) params.append("endDate", endDate);
+    if (categoryFilter) params.append("category", categoryFilter); // ✅ new
+
 
     try {
       const res = await fetch(`/api/transactions?${params.toString()}`);
@@ -72,10 +76,10 @@ export default function TransactionTable({ refreshTrigger }: Props) {
       setLoading(false);
     }
   };
+useEffect(() => {
+  fetchData(page);
+}, [page, refreshTrigger, typeFilter, descriptionFilter, startDate, endDate, categoryFilter]); // ✅ Fixed
 
-  useEffect(() => {
-    fetchData(page);
-  }, [page, refreshTrigger, typeFilter, descriptionFilter, startDate, endDate]);
 
   const handleDelete = async (id: string) => {
     await fetch(`/api/transactions/${id}`, { method: "DELETE" });
@@ -102,6 +106,7 @@ export default function TransactionTable({ refreshTrigger }: Props) {
     setDescriptionFilter("");
     setStartDate("");
     setEndDate("");
+    setCategoryFilter(""); // ✅ new
   };
 
   return (
@@ -129,6 +134,23 @@ export default function TransactionTable({ refreshTrigger }: Props) {
                   <option value="">All</option>
                   <option value="income">Income</option>
                   <option value="expense">Expense</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Category</label>
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="w-full mt-1 border rounded p-2 text-sm bg-white dark:bg-zinc-900"
+                >
+                  <option value="">All</option>
+                  <option value="food">Food</option>
+                  <option value="rent">Rent</option>
+                  <option value="entertainment">Entertainment</option>
+                  <option value="utilities">Utilities</option>
+                  <option value="salary">Salary</option>
+                  <option value="shopping">Shopping</option>
+                  <option value="other">Other</option>
                 </select>
               </div>
               <div>
@@ -180,37 +202,32 @@ export default function TransactionTable({ refreshTrigger }: Props) {
                 <TableHead>Date</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Type</TableHead>
+                <TableHead>Category</TableHead> {/* ✅ Add this */}
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
-              {transactions.map((tx) => (
-                <TableRow key={tx._id} className="transaction-row">
-                  <TableCell>${tx.amount.toFixed(2)}</TableCell>
-                  <TableCell>{new Date(tx.date).toLocaleDateString()}</TableCell>
-                  <TableCell>{tx.description}</TableCell>
-                  <TableCell className={tx.type === "income" ? "text-green-600" : "text-red-500"}>
-                    {tx.type}
-                  </TableCell>
-                  <TableCell className="text-right space-x-2">
-                    <Button variant="outline" size="sm" onClick={() => handleEdit(tx)}>
-                      Edit
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => handleDelete(tx._id)}>
-                      Delete
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
+           <TableBody>
+            {transactions.map((tx) => (
+              <TableRow key={tx._id}>
+                <TableCell>${tx.amount.toFixed(2)}</TableCell>
+                <TableCell>{new Date(tx.date).toLocaleDateString()}</TableCell>
+                <TableCell>{tx.description}</TableCell>
+                <TableCell className={tx.type === "income" ? "text-green-600" : "text-red-500"}>{tx.type}</TableCell>
+                <TableCell className="capitalize">{tx.category}</TableCell>
+                <TableCell className="text-right space-x-2">
+                  <Button variant="outline" size="sm" onClick={() => handleEdit(tx)}>Edit</Button>
+                  <Button variant="outline" size="sm" onClick={() => handleDelete(tx._id)}>Delete</Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
           </Table>
           <div className="flex justify-between pt-4">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setPage((p) => Math.max(p - 1, 1))}
-              disabled={page === 1}
-            >
+              disabled={page === 1}>
               Previous
             </Button>
             <span className="text-sm text-gray-500 dark:text-gray-400">
@@ -220,8 +237,7 @@ export default function TransactionTable({ refreshTrigger }: Props) {
               variant="outline"
               size="sm"
               onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
-              disabled={page === totalPages}
-            >
+              disabled={page === totalPages}>
               Next
             </Button>
           </div>

@@ -1,5 +1,7 @@
 'use client';
-import { useForm, Controller, useWatch } from "react-hook-form";
+
+import { useEffect, useState } from "react";
+import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { transactionSchema } from "@/lib/validation/transaction";
@@ -7,20 +9,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useEffect, useState } from "react";
 import { animate } from "animejs";
 
 type TransactionFormData = z.infer<typeof transactionSchema>;
-
 type Props = {
   onSuccess: () => void;
   defaultValues?: TransactionFormData & { _id?: string };
   mode?: "add" | "edit";
 };
 
-const incomeCategories = ["Salary", "Freelance", "Investments"];
-const expenseCategories = ["Food", "Rent", "Utilities", "Transport", "Entertainment", "Healthcare"];
+type Category = { _id: string; name: string };
 
 export default function TransactionForm({ onSuccess, defaultValues, mode = "add" }: Props) {
   const {
@@ -32,12 +30,18 @@ export default function TransactionForm({ onSuccess, defaultValues, mode = "add"
     setValue,
   } = useForm<TransactionFormData>({
     resolver: zodResolver(transactionSchema),
-    defaultValues: defaultValues || { type: "expense", category: "" },
+    defaultValues: defaultValues || { type: "expense" },
   });
 
-  const type = useWatch({ control, name: "type" }); // Watch for dynamic category
-
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    fetch("/api/categories")
+      .then((res) => res.json())
+      .then((data) => setCategories(data.categories))
+      .catch(() => setCategories([]));
+  }, []);
 
   useEffect(() => {
     if (defaultValues) {
@@ -121,24 +125,17 @@ export default function TransactionForm({ onSuccess, defaultValues, mode = "add"
 
       <div>
         <Label>Category</Label>
-        <Controller
-          name="category"
-          control={control}
-          render={({ field }) => (
-            <Select onValueChange={field.onChange} value={field.value}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a category" />
-              </SelectTrigger>
-              <SelectContent>
-                {(type === "income" ? incomeCategories : expenseCategories).map((cat) => (
-                  <SelectItem key={cat} value={cat}>
-                    {cat}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        />
+        <select
+          {...register("category")}
+          className="w-full border border-gray-300 dark:border-zinc-700 rounded p-2"
+        >
+          <option value="">Select a category</option>
+          {categories.map((cat) => (
+            <option key={cat._id} value={cat.name}>
+              {cat.name}
+            </option>
+          ))}
+        </select>
         {errors.category && <p className="text-red-500 text-sm">{errors.category.message}</p>}
       </div>
 

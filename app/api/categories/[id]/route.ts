@@ -5,13 +5,14 @@ import clientPromise from "@/lib/mongodb";
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }   // params is now a Promise
 ) {
+  const { id } = await params;                       // await before use
   try {
     const client = await clientPromise;
     const db = client.db("finance");
 
-    await db.collection("categories").deleteOne({ _id: new ObjectId(params.id) });
+    await db.collection("categories").deleteOne({ _id: new ObjectId(id) });
 
     return NextResponse.json({ message: "Category deleted" });
   } catch (err) {
@@ -22,8 +23,9 @@ export async function DELETE(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }   // same here
 ) {
+  const { id } = await params;
   try {
     const { name } = await req.json();
 
@@ -35,7 +37,7 @@ export async function PUT(
     const db = client.db("finance");
 
     await db.collection("categories").updateOne(
-      { _id: new ObjectId(params.id) },
+      { _id: new ObjectId(id) },
       { $set: { name } }
     );
 
