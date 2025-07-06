@@ -17,8 +17,9 @@ type ChartData = {
   month: string;
   total: number;
 };
+type Props = { refreshTrigger?: boolean };
 
-export default function MonthlyExpensesChart() {
+export default function MonthlyExpensesChart({ refreshTrigger }: Props) {
   const [data, setData] = useState<ChartData[]>([]);
   const [error, setError] = useState(false);
 
@@ -35,7 +36,7 @@ export default function MonthlyExpensesChart() {
         });
       })
       .catch(() => setError(true));
-  }, []);
+  }, [refreshTrigger]);
 
   if (error) return <p className="text-center text-red-500">Failed to load chart.</p>;
   if (!Array.isArray(data) || data.length === 0) {
