@@ -7,19 +7,41 @@ export async function GET(req: NextRequest) {
     const client = await clientPromise;
     const db = client.db("finance");
 
-    const page = parseInt(req.nextUrl.searchParams.get("page") || "1");
-    const limit = parseInt(req.nextUrl.searchParams.get("limit") || "5");
+    const url = req.nextUrl;
+    const page = parseInt(url.searchParams.get("page") || "1");
+    const limit = parseInt(url.searchParams.get("limit") || "5");
     const skip = (page - 1) * limit;
+
+    const type = url.searchParams.get("type"); // income | expense
+    const description = url.searchParams.get("description"); // fuzzy search
+    const startDate = url.searchParams.get("startDate"); // yyyy-mm-dd
+    const endDate = url.searchParams.get("endDate");     // yyyy-mm-dd
+
+    const query: any = {};
+
+    if (type === "income" || type === "expense") {
+      query.type = type;
+    }
+
+    if (description) {
+      query.description = { $regex: description, $options: "i" };
+    }
+
+    if (startDate || endDate) {
+      query.date = {};
+      if (startDate) query.date.$gte = startDate;
+      if (endDate) query.date.$lte = endDate;
+    }
 
     const [transactions, total] = await Promise.all([
       db
         .collection("transactions")
-        .find({})
-        .sort({ date: -1 }) // Most recent first
+        .find(query)
+        .sort({ date: -1 })
         .skip(skip)
         .limit(limit)
         .toArray(),
-      db.collection("transactions").countDocuments(),
+      db.collection("transactions").countDocuments(query),
     ]);
 
     return NextResponse.json({
