@@ -15,33 +15,42 @@ type Transaction = {
 
 export default function TransactionTable() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/transactions")
-      .then((res) => res.json())
-      .then((data) => {
-        setTransactions(data.transactions || []);
-        setLoading(false);
+  const fetchData = async (pageNum: number) => {
+    setLoading(true);
+    setError(false);
+    try {
+      const res = await fetch(`/api/transactions?page=${pageNum}&limit=5`);
+      const data = await res.json();
+      setTransactions(data.transactions || []);
+      setPage(data.page);
+      setTotalPages(data.totalPages);
+      setLoading(false);
 
       animate(".transaction-row", {
-      opacity: [0, 1],
-      translateY: [20, 0],
-      easing: "easeOutExpo",
-      delay: stagger(50), // ✅ now works
-      duration: 400,
+        opacity: [0, 1],
+        translateY: [20, 0],
+        easing: "easeOutExpo",
+        delay: stagger(40),
+        duration: 400,
       });
-      })
-      .catch(() => {
-        setError(true);
-        setLoading(false);
-      });
-  }, []);
+    } catch {
+      setError(true);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData(page);
+  }, [page]);
 
   const handleDelete = async (id: string) => {
     await fetch(`/api/transactions/${id}`, { method: "DELETE" });
-    setTransactions((prev) => prev.filter((t) => t._id !== id));
+    fetchData(page); // Refresh current page
   };
 
   if (loading) return <p className="text-center">Loading...</p>;
@@ -49,7 +58,7 @@ export default function TransactionTable() {
   if (transactions.length === 0) return <p className="text-center">No transactions yet, add your first transaction.</p>;
 
   return (
-    <div className="mt-10 max-w-4xl mx-auto overflow-x-auto">
+    <div className="mt-10 max-w-4xl mx-auto overflow-x-auto space-y-4">
       <Table>
         <TableHeader>
           <TableRow>
@@ -73,12 +82,33 @@ export default function TransactionTable() {
                 <Button variant="outline" size="sm" onClick={() => handleDelete(tx._id)}>
                   Delete
                 </Button>
-                {/* Placeholder for Edit in future */}
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
+
+      <div className="flex justify-between pt-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setPage((p) => Math.max(p - 1, 1))}
+          disabled={page === 1}
+        >
+          Previous
+        </Button>
+        <span className="text-sm text-gray-500 dark:text-gray-400">
+          Page {page} of {totalPages}
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+          disabled={page === totalPages}
+        >
+          Next
+        </Button>
+      </div>
     </div>
   );
 }
