@@ -12,15 +12,20 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { animate } from "animejs";
 
 type TransactionFormData = z.infer<typeof transactionSchema>;
+
 type Props = {
   onSuccess: () => void;
   defaultValues?: TransactionFormData & { _id?: string };
   mode?: "add" | "edit";
+  categories: { _id: string; name: string }[]; // ✅ Receive from props
 };
 
-type Category = { _id: string; name: string };
-
-export default function TransactionForm({ onSuccess, defaultValues, mode = "add" }: Props) {
+export default function TransactionForm({
+  onSuccess,
+  defaultValues,
+  mode = "add",
+  categories,
+}: Props) {
   const {
     register,
     handleSubmit,
@@ -34,14 +39,6 @@ export default function TransactionForm({ onSuccess, defaultValues, mode = "add"
   });
 
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [categories, setCategories] = useState<Category[]>([]);
-
-  useEffect(() => {
-    fetch("/api/categories")
-      .then((res) => res.json())
-      .then((data) => setCategories(data.categories))
-      .catch(() => setCategories([]));
-  }, []);
 
   useEffect(() => {
     if (defaultValues) {

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { animate, stagger } from "animejs";
 import TransactionForm from "@/components/TransactionForm";
+import { HiPencil, HiTrash } from "react-icons/hi";
 
 type Transaction = {
   _id: string;
@@ -21,6 +22,11 @@ type Transaction = {
 type Props = {
   refreshTrigger: boolean;
 };
+type Category = {
+  _id: string;
+  name: string;
+};
+
 
 export default function TransactionTable({ refreshTrigger }: Props) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -31,7 +37,8 @@ export default function TransactionTable({ refreshTrigger }: Props) {
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [categoryFilter, setCategoryFilter] = useState(""); // ✅ new
+  const [categoryFilter, setCategoryFilter] = useState(""); 
+  const [categories, setCategories] = useState<Category[]>([]);
 
 
   // ✅ Filter states
@@ -80,6 +87,19 @@ useEffect(() => {
   fetchData(page);
 }, [page, refreshTrigger, typeFilter, descriptionFilter, startDate, endDate, categoryFilter]); // ✅ Fixed
 
+useEffect(() => {
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch("/api/categories");
+      const data = await res.json();
+      setCategories(data.categories);
+    } catch (err) {
+      console.error("Failed to fetch categories", err);
+      setCategories([]);
+    }
+  };
+  fetchCategories();
+}, []);
 
   const handleDelete = async (id: string) => {
     await fetch(`/api/transactions/${id}`, { method: "DELETE" });
@@ -196,32 +216,47 @@ useEffect(() => {
       ) : (
         <>
           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Amount</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Category</TableHead> {/* ✅ Add this */}
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-           <TableBody>
-            {transactions.map((tx) => (
-              <TableRow key={tx._id}>
-                <TableCell>${tx.amount.toFixed(2)}</TableCell>
-                <TableCell>{new Date(tx.date).toLocaleDateString()}</TableCell>
-                <TableCell>{tx.description}</TableCell>
-                <TableCell className={tx.type === "income" ? "text-green-600" : "text-red-500"}>{tx.type}</TableCell>
-                <TableCell className="capitalize">{tx.category}</TableCell>
-                <TableCell className="text-right space-x-2">
-                  <Button variant="outline" size="sm" onClick={() => handleEdit(tx)}>Edit</Button>
-                  <Button variant="outline" size="sm" onClick={() => handleDelete(tx._id)}>Delete</Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-          </Table>
+  <TableHeader>
+    <TableRow>
+      <TableHead>Amount</TableHead>
+      <TableHead>Date</TableHead>
+      <TableHead>Description</TableHead>
+      <TableHead>Type</TableHead>
+      <TableHead>Category</TableHead>
+      <TableHead>Modify</TableHead>
+      <TableHead>Delete</TableHead>
+    </TableRow>
+  </TableHeader>
+  <TableBody>
+    {transactions.map((tx) => (
+      <TableRow key={tx._id}>
+        <TableCell>${tx.amount.toFixed(2)}</TableCell>
+        <TableCell>{new Date(tx.date).toLocaleDateString()}</TableCell>
+        <TableCell>{tx.description}</TableCell>
+        <TableCell className={tx.type === "income" ? "text-green-600" : "text-red-500"}>
+          {tx.type}
+        </TableCell>
+        <TableCell className="capitalize">{tx.category}</TableCell>
+        <TableCell>
+          <Button variant="outline" size="sm" onClick={() => handleEdit(tx)} className="flex items-center gap-1">
+            <HiPencil className="h-4 w-4" />
+            Edit
+          </Button>
+        </TableCell>
+        <TableCell>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-red-600 hover:text-red-800"
+            onClick={() => handleDelete(tx._id)}
+          >
+            <HiTrash className="h-5 w-5" />
+          </Button>
+        </TableCell>
+      </TableRow>
+    ))}
+  </TableBody>
+</Table>
           <div className="flex justify-between pt-4">
             <Button
               variant="outline"
@@ -246,20 +281,21 @@ useEffect(() => {
 
       {/* ✏️ Modal for Editing */}
       {showModal && editingTx && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
-          <div className="bg-white dark:bg-zinc-900 rounded-lg p-6 w-full max-w-md shadow-lg">
-            <h2 className="text-lg font-semibold mb-4">Edit Transaction</h2>
-            <TransactionForm
-              defaultValues={editingTx}
-              mode="edit"
-              onSuccess={handleEditSuccess}
-            />
-            <Button variant="ghost" className="mt-4" onClick={handleCloseModal}>
-              Cancel
-            </Button>
-          </div>
+      <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
+        <div className="bg-white dark:bg-zinc-900 rounded-lg p-6 w-full max-w-md shadow-lg">
+          <h2 className="text-lg font-semibold mb-4">Edit Transaction</h2>
+          <TransactionForm
+            defaultValues={editingTx}
+            mode="edit"
+            onSuccess={handleEditSuccess}
+            categories={categories} // ✅ Pass the categories
+          />
+          <Button variant="ghost" className="mt-4" onClick={handleCloseModal}>
+            Cancel
+          </Button>
         </div>
-      )}
+      </div>
+    )}
     </div>
   );
 }

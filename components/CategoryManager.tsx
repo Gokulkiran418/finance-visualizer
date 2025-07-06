@@ -10,8 +10,11 @@ type Category = {
   _id: string;
   name: string;
 };
+type Props = {
+  onChange?: () => void;
+};
 
-export default function CategoryManager() {
+export default function CategoryManager({ onChange }: Props) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [newCategory, setNewCategory] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,7 +34,7 @@ export default function CategoryManager() {
     fetchCategories();
   }, []);
 
-  const handleAdd = async () => {
+   const handleAdd = async () => {
     if (!newCategory.trim()) return;
 
     setLoading(true);
@@ -46,13 +49,15 @@ export default function CategoryManager() {
       if (!res.ok) throw new Error('Failed to add');
 
       setNewCategory('');
-      fetchCategories();
+      await fetchCategories();
+      onChange?.(); // 👈 trigger parent refresh
     } catch {
       setError('Failed to add category');
     } finally {
       setLoading(false);
     }
   };
+  
 
   const handleDelete = async (id: string) => {
     try {
