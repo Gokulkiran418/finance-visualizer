@@ -12,8 +12,11 @@ type Transaction = {
   description: string;
   type: "income" | "expense";
 };
+type Props = {
+  refreshTrigger: boolean;
+};
 
-export default function TransactionTable() {
+export default function TransactionTable({ refreshTrigger }: Props) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -31,12 +34,12 @@ export default function TransactionTable() {
       setTotalPages(data.totalPages);
       setLoading(false);
 
-      animate(".transaction-row", {
-        opacity: [0, 1],
-        translateY: [20, 0],
-        easing: "easeOutExpo",
-        delay: stagger(40),
-        duration: 400,
+     animate(".transaction-row", {
+      opacity: [0, 1],
+      translateY: [20, 0],
+      easing: "easeOutExpo",
+      delay: stagger(40, { start: 100 }),
+      duration: 400,
       });
     } catch {
       setError(true);
@@ -46,7 +49,7 @@ export default function TransactionTable() {
 
   useEffect(() => {
     fetchData(page);
-  }, [page]);
+  }, [page, refreshTrigger]);
 
   const handleDelete = async (id: string) => {
     await fetch(`/api/transactions/${id}`, { method: "DELETE" });

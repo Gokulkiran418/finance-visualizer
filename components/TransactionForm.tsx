@@ -1,6 +1,5 @@
 'use client';
-
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { transactionSchema } from "@/lib/validation/transaction";
@@ -9,23 +8,30 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useState } from "react";
-import { animate } from "animejs"; // ✅ Correct v4+ import
+import { animate } from "animejs";
 
 type TransactionFormData = z.infer<typeof transactionSchema>;
+type Props = {
+  onSuccess: () => void;
+};
 
-export default function TransactionForm() {
+export default function TransactionForm({ onSuccess }: Props) {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
     reset,
   } = useForm<TransactionFormData>({
     resolver: zodResolver(transactionSchema),
+    defaultValues: {
+      type: "expense", // ✅ set default here
+    },
   });
 
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
 
-  const onSubmit = async (data: TransactionFormData) => {
+   const onSubmit = async (data: TransactionFormData) => {
     setStatus("loading");
     try {
       const res = await fetch("/api/transactions", {
@@ -38,8 +44,8 @@ export default function TransactionForm() {
 
       setStatus("success");
       reset();
+      onSuccess(); // 👈 trigger table refresh
 
-      // ✅ Animate success message using new `animate` method
       animate("#formSuccess", {
         opacity: [0, 1],
         translateY: [10, 0],
@@ -51,6 +57,7 @@ export default function TransactionForm() {
     }
   };
 
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 p-6 max-w-md mx-auto">
       <div>
@@ -58,30 +65,40 @@ export default function TransactionForm() {
         <Input type="number" step="0.01" {...register("amount", { valueAsNumber: true })} />
         {errors.amount && <p className="text-red-500 text-sm">{errors.amount.message}</p>}
       </div>
+
       <div>
         <Label>Date</Label>
         <Input type="date" {...register("date")} />
         {errors.date && <p className="text-red-500 text-sm">{errors.date.message}</p>}
       </div>
+
       <div>
         <Label>Description</Label>
         <Input type="text" {...register("description")} />
         {errors.description && <p className="text-red-500 text-sm">{errors.description.message}</p>}
       </div>
+
       <div>
         <Label>Type</Label>
-        <RadioGroup defaultValue="expense" {...register("type")}>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="income" id="income" />
-            <Label htmlFor="income">Income</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="expense" id="expense" />
-            <Label htmlFor="expense">Expense</Label>
-          </div>
-        </RadioGroup>
+        <Controller
+          control={control}
+          name="type"
+          render={({ field }) => (
+            <RadioGroup onValueChange={field.onChange} value={field.value} defaultValue="expense">
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="income" id="income" />
+                <Label htmlFor="income">Income</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="expense" id="expense" />
+                <Label htmlFor="expense">Expense</Label>
+              </div>
+            </RadioGroup>
+          )}
+        />
         {errors.type && <p className="text-red-500 text-sm">{errors.type.message}</p>}
       </div>
+
       <Button type="submit" disabled={status === "loading"}>
         {status === "loading" ? "Adding..." : "Add Transaction"}
       </Button>
