@@ -5,6 +5,7 @@ import TransactionForm from "@/components/TransactionForm";
 import TransactionTable from "@/components/TransactionTable";
 import MonthlyExpensesChart from "@/components/MonthlyExpensesChart";
 import { animate } from "animejs";
+import CategoryManager from '@/components/CategoryManager';
 
 export default function Home() {
   const [refreshFlag, setRefreshFlag] = useState(false);
@@ -28,6 +29,7 @@ export default function Home() {
       <TransactionForm onSuccess={handleRefresh} />
       <TransactionTable refreshTrigger={refreshFlag} />
       <MonthlyExpensesChart refreshTrigger={refreshFlag} /> 
+      <CategoryManager />
     </main>
   );
 }
