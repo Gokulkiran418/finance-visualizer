@@ -1,8 +1,8 @@
 'use client';
 
 import TransactionForm from "@/components/TransactionForm";
-import { Button } from "@/components/ui/button";
-import { animate } from "animejs"; // ✅ Updated import
+import TransactionTable from "@/components/TransactionTable";
+import { animate } from "animejs";
 import { useEffect, useRef } from "react";
 
 export default function Home() {
@@ -25,6 +25,7 @@ export default function Home() {
         Personal Finance Visualizer
       </h1>
       <TransactionForm />
+      <TransactionTable />
     </main>
   );
 }
