@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from "@/components/ui/table";
@@ -16,17 +16,17 @@ type Transaction = {
   date: string;
   description: string;
   type: "income" | "expense";
-  category: string; // ✅ add this line
+  category: string;
 };
 
 type Props = {
   refreshTrigger: boolean;
 };
+
 type Category = {
   _id: string;
   name: string;
 };
-
 
 export default function TransactionTable({ refreshTrigger }: Props) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -37,15 +37,15 @@ export default function TransactionTable({ refreshTrigger }: Props) {
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [categoryFilter, setCategoryFilter] = useState(""); 
+  const [categoryFilter, setCategoryFilter] = useState("");
   const [categories, setCategories] = useState<Category[]>([]);
 
-
-  // ✅ Filter states
   const [typeFilter, setTypeFilter] = useState("");
   const [descriptionFilter, setDescriptionFilter] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const fetchData = async (pageNum: number) => {
     setLoading(true);
@@ -60,8 +60,7 @@ export default function TransactionTable({ refreshTrigger }: Props) {
     if (descriptionFilter) params.append("description", descriptionFilter);
     if (startDate) params.append("startDate", startDate);
     if (endDate) params.append("endDate", endDate);
-    if (categoryFilter) params.append("category", categoryFilter); // ✅ new
-
+    if (categoryFilter) params.append("category", categoryFilter);
 
     try {
       const res = await fetch(`/api/transactions?${params.toString()}`);
@@ -71,35 +70,47 @@ export default function TransactionTable({ refreshTrigger }: Props) {
       setTotalPages(data.totalPages);
       setLoading(false);
 
+      // Animate rows
       animate(".transaction-row", {
         opacity: [0, 1],
         translateY: [20, 0],
         easing: "easeOutExpo",
-        delay: stagger(40, { start: 100 }),
+        delay: stagger(40, { start: 200 }),
         duration: 400,
       });
+
+      // Animate container
+      if (containerRef.current) {
+        animate(containerRef.current, {
+          opacity: [0, 1],
+          translateY: [40, 0],
+          duration: 700,
+          easing: "easeOutExpo",
+        });
+      }
     } catch {
       setError(true);
       setLoading(false);
     }
   };
-useEffect(() => {
-  fetchData(page);
-}, [page, refreshTrigger, typeFilter, descriptionFilter, startDate, endDate, categoryFilter]); // ✅ Fixed
 
-useEffect(() => {
-  const fetchCategories = async () => {
-    try {
-      const res = await fetch("/api/categories");
-      const data = await res.json();
-      setCategories(data.categories);
-    } catch (err) {
-      console.error("Failed to fetch categories", err);
-      setCategories([]);
-    }
-  };
-  fetchCategories();
-}, []);
+  useEffect(() => {
+    fetchData(page);
+  }, [page, refreshTrigger, typeFilter, descriptionFilter, startDate, endDate, categoryFilter]);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await fetch("/api/categories");
+        const data = await res.json();
+        setCategories(data.categories);
+      } catch (err) {
+        console.error("Failed to fetch categories", err);
+        setCategories([]);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   const handleDelete = async (id: string) => {
     await fetch(`/api/transactions/${id}`, { method: "DELETE" });
@@ -126,19 +137,17 @@ useEffect(() => {
     setDescriptionFilter("");
     setStartDate("");
     setEndDate("");
-    setCategoryFilter(""); // ✅ new
+    setCategoryFilter("");
   };
 
   return (
-    <div className="mt-10 max-w-4xl mx-auto overflow-x-auto space-y-4">
-
-      {/* 🔽 Collapsible Filter Panel */}
+    <div
+      ref={containerRef}
+      className="mt-10 max-w-4xl mx-auto overflow-x-auto space-y-4 opacity-0"
+    >
+      {/* Filter Toggle */}
       <div className="mb-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowFilters((prev) => !prev)}
-        >
+        <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)}>
           {showFilters ? "Hide Filters" : "Show Filters"}
         </Button>
         {showFilters && (
@@ -206,7 +215,7 @@ useEffect(() => {
         )}
       </div>
 
-      {/* 💳 Table */}
+      {/* Transaction Table */}
       {loading ? (
         <p className="text-center">Loading...</p>
       ) : error ? (
@@ -216,53 +225,55 @@ useEffect(() => {
       ) : (
         <>
           <Table>
-  <TableHeader>
-    <TableRow>
-      <TableHead>Amount</TableHead>
-      <TableHead>Date</TableHead>
-      <TableHead>Description</TableHead>
-      <TableHead>Type</TableHead>
-      <TableHead>Category</TableHead>
-      <TableHead>Modify</TableHead>
-      <TableHead>Delete</TableHead>
-    </TableRow>
-  </TableHeader>
-  <TableBody>
-    {transactions.map((tx) => (
-      <TableRow key={tx._id}>
-        <TableCell>${tx.amount.toFixed(2)}</TableCell>
-        <TableCell>{new Date(tx.date).toLocaleDateString()}</TableCell>
-        <TableCell>{tx.description}</TableCell>
-        <TableCell className={tx.type === "income" ? "text-green-600" : "text-red-500"}>
-          {tx.type}
-        </TableCell>
-        <TableCell className="capitalize">{tx.category}</TableCell>
-        <TableCell>
-          <Button variant="outline" size="sm" onClick={() => handleEdit(tx)} className="flex items-center gap-1">
-            <HiPencil className="h-4 w-4" />
-            Edit
-          </Button>
-        </TableCell>
-        <TableCell>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-red-600 hover:text-red-800"
-            onClick={() => handleDelete(tx._id)}
-          >
-            <HiTrash className="h-5 w-5" />
-          </Button>
-        </TableCell>
-      </TableRow>
-    ))}
-  </TableBody>
-</Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Amount</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Modify</TableHead>
+                <TableHead>Delete</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {transactions.map((tx) => (
+                <TableRow key={tx._id} className="transaction-row">
+                  <TableCell>${tx.amount.toFixed(2)}</TableCell>
+                  <TableCell>{new Date(tx.date).toLocaleDateString()}</TableCell>
+                  <TableCell>{tx.description}</TableCell>
+                  <TableCell className={tx.type === "income" ? "text-green-600" : "text-red-500"}>
+                    {tx.type}
+                  </TableCell>
+                  <TableCell className="capitalize">{tx.category}</TableCell>
+                  <TableCell>
+                    <Button variant="outline" size="sm" onClick={() => handleEdit(tx)} className="flex items-center gap-1">
+                      <HiPencil className="h-4 w-4" />
+                      Edit
+                    </Button>
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-red-600 hover:text-red-800"
+                      onClick={() => handleDelete(tx._id)}
+                    >
+                      <HiTrash className="h-5 w-5" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+
           <div className="flex justify-between pt-4">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setPage((p) => Math.max(p - 1, 1))}
-              disabled={page === 1}>
+              disabled={page === 1}
+            >
               Previous
             </Button>
             <span className="text-sm text-gray-500 dark:text-gray-400">
@@ -272,30 +283,31 @@ useEffect(() => {
               variant="outline"
               size="sm"
               onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
-              disabled={page === totalPages}>
+              disabled={page === totalPages}
+            >
               Next
             </Button>
           </div>
         </>
       )}
 
-      {/* ✏️ Modal for Editing */}
+      {/* Edit Modal */}
       {showModal && editingTx && (
-      <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
-        <div className="bg-white dark:bg-zinc-900 rounded-lg p-6 w-full max-w-md shadow-lg">
-          <h2 className="text-lg font-semibold mb-4">Edit Transaction</h2>
-          <TransactionForm
-            defaultValues={editingTx}
-            mode="edit"
-            onSuccess={handleEditSuccess}
-            categories={categories} // ✅ Pass the categories
-          />
-          <Button variant="ghost" className="mt-4" onClick={handleCloseModal}>
-            Cancel
-          </Button>
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
+          <div className="bg-white dark:bg-zinc-900 rounded-lg p-6 w-full max-w-md shadow-lg">
+            <h2 className="text-lg font-semibold mb-4">Edit Transaction</h2>
+            <TransactionForm
+              defaultValues={editingTx}
+              mode="edit"
+              onSuccess={handleEditSuccess}
+              categories={categories}
+            />
+            <Button variant="ghost" className="mt-4" onClick={handleCloseModal}>
+              Cancel
+            </Button>
+          </div>
         </div>
-      </div>
-    )}
+      )}
     </div>
   );
 }

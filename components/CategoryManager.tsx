@@ -1,10 +1,10 @@
-// components/CategoryManager.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { animate, stagger } from 'animejs';
 
 type Category = {
   _id: string;
@@ -19,6 +19,7 @@ export default function CategoryManager({ onChange }: Props) {
   const [newCategory, setNewCategory] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const fetchCategories = async () => {
     try {
@@ -34,7 +35,26 @@ export default function CategoryManager({ onChange }: Props) {
     fetchCategories();
   }, []);
 
-   const handleAdd = async () => {
+  useEffect(() => {
+    if (containerRef.current) {
+      animate(containerRef.current, {
+        opacity: [0, 1],
+        translateY: [30, 0],
+        duration: 600,
+        easing: 'easeOutExpo',
+      });
+    }
+
+    animate('.category-row', {
+      opacity: [0, 1],
+      translateX: [-20, 0],
+      delay: stagger(80),
+      duration: 500,
+      easing: 'easeOutExpo',
+    });
+  }, [categories]);
+
+  const handleAdd = async () => {
     if (!newCategory.trim()) return;
 
     setLoading(true);
@@ -50,14 +70,13 @@ export default function CategoryManager({ onChange }: Props) {
 
       setNewCategory('');
       await fetchCategories();
-      onChange?.(); // 👈 trigger parent refresh
+      onChange?.();
     } catch {
       setError('Failed to add category');
     } finally {
       setLoading(false);
     }
   };
-  
 
   const handleDelete = async (id: string) => {
     try {
@@ -69,7 +88,7 @@ export default function CategoryManager({ onChange }: Props) {
   };
 
   return (
-    <Card className="p-6 mt-10 w-full max-w-2xl mx-auto space-y-6">
+    <Card ref={containerRef} className="p-6 mt-10 w-full max-w-2xl mx-auto space-y-6 opacity-0">
       <h2 className="text-xl font-bold">Manage Categories</h2>
 
       <div className="flex items-center gap-2">
@@ -89,7 +108,7 @@ export default function CategoryManager({ onChange }: Props) {
         {categories.map((cat) => (
           <li
             key={cat._id}
-            className="flex justify-between items-center p-2 border rounded-md"
+            className="flex justify-between items-center p-2 border rounded-md category-row opacity-0"
           >
             <span>{cat.name}</span>
             <Button variant="outline" size="sm" onClick={() => handleDelete(cat._id)}>
